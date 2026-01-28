@@ -97,4 +97,14 @@ class Artikel extends Model
     {
         return $query->where('featured', 1);
     }
+
+     public function tags()
+    {
+        return $this->belongsToMany(
+            Tag::class,
+            'artikel_tag',      // pivot table
+            'artikel_id',       // FK di pivot
+            'tag_id'            // FK di pivot
+        );
+    }
 }

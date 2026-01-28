@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Tag;
 use App\Models\Artikel;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -11,7 +12,7 @@ class ArtikelController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Artikel::with('user:id,name')->latest();
+        $query = Artikel::with(['user:id,name', 'tags:id,name,slug'])->latest();
 
         if ($request->filled('category')) {
             $query->where('category', $request->category);
@@ -45,7 +46,7 @@ class ArtikelController extends Controller
      */
     public function show($slug)
     {
-        $artikel = Artikel::with('user:id,name')
+        $artikel = Artikel::with(['user:id,name', 'tags:id,name,slug'])
             ->published()
             ->where('slug', $slug)
             ->firstOrFail();
@@ -83,10 +84,14 @@ class ArtikelController extends Controller
             'canonical_url' => 'nullable|url',
 
             'content' => 'required|string',
-
+            
             'status' => 'nullable|boolean',
             'featured' => 'nullable|boolean',
             'noindex' => 'nullable|boolean',
+
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:50',
+
         ]);
 
         if ($request->hasFile('image')) {
@@ -108,9 +113,26 @@ class ArtikelController extends Controller
         $validated['status']   = $validated['status']   ?? 1;
         $validated['featured'] = $validated['featured'] ?? 0;
         $validated['noindex']  = $validated['noindex']  ?? 0;
-
+        $tags = $validated['tags'] ?? [];
+        unset($validated['tags']);
 
         $artikel = Artikel::create($validated);
+        // ================= TAGS =================
+        if (!empty($tags)) {
+            $tagIds = [];
+
+            foreach ($tags as $tagName) {
+                $tag = Tag::firstOrCreate(
+                    ['slug' => Str::slug($tagName)],
+                    ['name' => $tagName]
+                );
+
+                $tagIds[] = $tag->id;
+            }
+
+            $artikel->tags()->sync($tagIds);
+        }
+
 
         return response()->json([
             'success' => true,
@@ -125,65 +147,86 @@ class ArtikelController extends Controller
      * Update artikel
      */
     public function update(Request $request, $slug)
-    {
-        $artikel = Artikel::where('slug', $slug)->firstOrFail();
+{
+    $artikel = Artikel::where('slug', $slug)->firstOrFail();
 
-        $validated = $request->validate([
-            'category' => 'required|in:Kesehatan,Islami',
-            'title' => 'required|string|max:255',
-            'excerpt' => 'nullable|string',
-            'published_at' => 'nullable|date',
+    $validated = $request->validate([
+        'category' => 'required|in:Kesehatan,Islami',
+        'title' => 'required|string|max:255',
+        'excerpt' => 'nullable|string',
+        'published_at' => 'nullable|date',
 
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'image_alt' => 'nullable|string|max:255',
+        'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        'image_alt' => 'nullable|string|max:255',
 
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string',
-            'meta_keywords' => 'nullable|string',
-            'canonical_url' => 'nullable|url',
+        'meta_title' => 'nullable|string|max:255',
+        'meta_description' => 'nullable|string',
+        'meta_keywords' => 'nullable|string',
+        'canonical_url' => 'nullable|url',
 
-            'content' => 'required|string',
+        'content' => 'required|string',
 
-            'status' => 'nullable|boolean',
-            'featured' => 'nullable|boolean',
-            'noindex' => 'nullable|boolean',
-        ]);
+        'status' => 'nullable|boolean',
+        'featured' => 'nullable|boolean',
+        'noindex' => 'nullable|boolean',
 
-        // ================= SLUG =================
-        if ($artikel->title !== $validated['title']) {
-            $newSlug = Str::slug($validated['title']);
+        'tags' => 'nullable|array',
+        'tags.*' => 'string|max:50',
+    ]);
 
-            $count = Artikel::where('slug', 'like', "$newSlug%")
-                ->where('id', '!=', $artikel->id)
-                ->count();
+    // 🔥 AMBIL TAGS & HAPUS DARI VALIDATED
+    $tags = $validated['tags'] ?? [];
+    unset($validated['tags']);
 
-            $validated['slug'] = $count
-                ? "{$newSlug}-" . ($count + 1)
-                : $newSlug;
-        }
+    // ================= SLUG =================
+    if ($artikel->title !== $validated['title']) {
+        $newSlug = Str::slug($validated['title']);
 
-        // ================= IMAGE =================
-        if ($request->hasFile('image')) {
-            if ($artikel->image && Storage::disk('public')->exists($artikel->image)) {
-                Storage::disk('public')->delete($artikel->image);
-            }
+        $count = Artikel::where('slug', 'like', "$newSlug%")
+            ->where('id', '!=', $artikel->id)
+            ->count();
 
-            $validated['image'] = $request->file('image')->store('artikels', 'public');
-        }
-
-        // ================= BOOLEAN =================
-        $validated['status']   = $validated['status']   ?? 0;
-        $validated['featured'] = $validated['featured'] ?? 0;
-        $validated['noindex']  = $validated['noindex']  ?? 0;
-
-        $artikel->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Artikel berhasil diperbarui',
-            'data' => $artikel->fresh()
-        ]);
+        $validated['slug'] = $count
+            ? "{$newSlug}-" . ($count + 1)
+            : $newSlug;
     }
+
+    // ================= IMAGE =================
+    if ($request->hasFile('image')) {
+        if ($artikel->image && Storage::disk('public')->exists($artikel->image)) {
+            Storage::disk('public')->delete($artikel->image);
+        }
+
+        $validated['image'] = $request->file('image')->store('artikels', 'public');
+    }
+
+    // ================= BOOLEAN =================
+    $validated['status']   = $validated['status']   ?? 0;
+    $validated['featured'] = $validated['featured'] ?? 0;
+    $validated['noindex']  = $validated['noindex']  ?? 0;
+
+    // 🔥 UPDATE ARTIKEL (TANPA TAGS)
+    $artikel->update($validated);
+
+    // ================= TAGS =================
+    $tagIds = [];
+    foreach ($tags as $tagName) {
+        $tag = Tag::firstOrCreate(
+            ['slug' => Str::slug($tagName)],
+            ['name' => $tagName]
+        );
+        $tagIds[] = $tag->id;
+    }
+
+    $artikel->tags()->sync($tagIds);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Artikel berhasil diperbarui',
+        'data' => $artikel->load('tags')
+    ]);
+}
+
 
     /**
      * DELETE /artikels/{id}
@@ -208,7 +251,7 @@ class ArtikelController extends Controller
     // =========================Public Artikel==============================
     public function home_artikel(Request $request)
     {
-        $query = Artikel::with('user:id,name')
+        $query = Artikel::with(['user:id,name', 'tags:id,name,slug'])
             ->where('status', 1)
             ->where('noindex', 0);
 
@@ -236,7 +279,8 @@ class ArtikelController extends Controller
 
     public function detail_artikel($slug)
     {
-        $artikel = Artikel::where('slug', $slug)
+       $artikel = Artikel::with(['user:id,name', 'tags:id,name,slug'])
+            ->where('slug', $slug)
             ->where('status', 1)
             ->where('noindex', 0)
             ->first();
@@ -262,6 +306,27 @@ class ArtikelController extends Controller
             'related' => $related
         ]);
     }
+
+    public function artikel_by_tag($slug)
+    {
+        $tag = Tag::where('slug', $slug)->first();
+
+        if (!$tag) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tag tidak ditemukan'
+            ], 404);
+        }
+
+        $artikels = $tag->artikels()->where('status', 1)->paginate(6);
+
+        return response()->json([
+            'success' => true,
+            'tag' => $tag,
+            'data' => $artikels
+        ]);
+    }
+
 
     public function artikelFeatured()
     {

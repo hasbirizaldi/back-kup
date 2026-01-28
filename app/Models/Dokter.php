@@ -20,8 +20,8 @@ class Dokter extends Model
     ];
 
     protected $casts = [
-        'poliklinik' => 'boolean',
-        'status' => 'boolean'
+        'poliklinik' => 'integer',
+        'status' => 'integer'
     ];
 
     public function spesialis()

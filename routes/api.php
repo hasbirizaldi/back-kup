@@ -129,10 +129,14 @@ Route::middleware(['auth:api', 'role:super_admin'])->group(function () {
 | PUBLIC ROUTE (TANPA LOGIN)
 |--------------------------------------------------------------------------
 */
-Route::get('/public-artikels/featured', [ArtikelController::class, 'artikelFeatured']);
-Route::get('/public-artikels/news', [ArtikelController::class, 'artikelNews']);
-Route::get('/public-artikels', [ArtikelController::class, 'home_artikel']);
-Route::get('/public-artikels/{slug}', [ArtikelController::class, 'detail_artikel']);
+Route::prefix('public-artikels')->group(function () {
+    Route::get('/featured', [ArtikelController::class, 'artikelFeatured']);
+    Route::get('/news', [ArtikelController::class, 'artikelNews']);
+    Route::get('/', [ArtikelController::class, 'home_artikel']);
+    Route::get('/tag/{slug}', [ArtikelController::class, 'artikel_by_tag']);
+    Route::get('/{slug}', [ArtikelController::class, 'detail_artikel']);
+});
+
 
 Route::get('/public-promosis', [PromosiController::class, 'publicPromosi']);
 Route::get('/public-galleries', [GalleryController::class, 'publicGallery']);
@@ -148,7 +152,6 @@ Route::get('/check-nik', [LamaranController::class, 'checkNik']);
 Route::get('/dokter-kami', [JadwalDokterController::class, 'indexPublic']);
 
 Route::get('jadwal-polikliniks-public', [JadwalPoliklinikController::class, "indexPublic"]);
-
 
 
 
