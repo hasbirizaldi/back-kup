@@ -22,7 +22,7 @@ class JobVacancyController extends Controller
             'title' => 'required',
             'description' => 'required',
             'requirements' => 'required|array',
-            'documents' => 'required|array',
+            'documents' => 'nullable|array',
             'deadline' => 'required|date',
             'is_active' => 'boolean'
         ]);
@@ -49,7 +49,7 @@ class JobVacancyController extends Controller
         $request->validate([
             'title' => 'required',
             'description' => 'required',
-            'requirements' => 'required|array',
+            'requirements' => 'nullable|array',
             'documents' => 'required|array',
             'deadline' => 'required|date',
              'is_active' => 'boolean',

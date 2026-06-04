@@ -14,7 +14,7 @@ class LamaranController extends Controller
 
     public function index(Request $request)
     {
-        $query = LamaranPekerjaan::with('job')->latest();
+        $query = LamaranPekerjaan::with('job')->oldest();
 
         // filter posisi
         if ($request->filled('posisi')) {

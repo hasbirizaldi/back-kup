@@ -26,7 +26,7 @@ class LamaranExport implements FromCollection, WithHeadings
             });
         }
 
-        return $query->latest()->get()->map(function ($item) {
+        return $query->oldest()->get()->map(function ($item) {
             return [
                 'Nama' => $item->nama_lengkap,
                 'Posisi' => $item->job?->description,

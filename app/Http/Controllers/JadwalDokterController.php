@@ -138,8 +138,8 @@ class JadwalDokterController extends Controller
                     'id' => $dokter->id,
                     'nama' => $dokter->nama,
                     'spesialis' => $dokter->spesialis->nama,
-                    'foto' => $dokter->foto 
-                        ? asset('storage/' . $dokter->foto) 
+                    'foto' => $dokter->foto
+                        ? asset('storage/' . $dokter->foto)
                         : asset('default-dokter.png'),
                     'jadwal' => $jadwal
                 ];
